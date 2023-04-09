@@ -26,7 +26,7 @@ interface StockApi {
     ): CompanyInfoDto
 
     companion object {
-        const val API_KEY = "G1USXWKX272RK4BP"
+        const val API_KEY = "4W86C5EAGHDOZSCK"
         const val BASE_URL = "https://alphavantage.co"
     }
 }

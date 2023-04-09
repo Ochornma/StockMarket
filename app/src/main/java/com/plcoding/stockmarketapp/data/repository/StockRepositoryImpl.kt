@@ -1,25 +1,24 @@
 package com.plcoding.stockmarketapp.data.repository
 
-import com.opencsv.CSVReader
 import com.plcoding.stockmarketapp.data.csv.CSVParser
-import com.plcoding.stockmarketapp.data.csv.CompanyListingsParser
 import com.plcoding.stockmarketapp.data.local.StockDatabase
-import com.plcoding.stockmarketapp.data.mapper.toCompanyInfo
-import com.plcoding.stockmarketapp.data.mapper.toCompanyListing
-import com.plcoding.stockmarketapp.data.mapper.toCompanyListingEntity
+import com.plcoding.stockmarketapp.data.mapper.*
 import com.plcoding.stockmarketapp.data.remote.StockApi
+import com.plcoding.stockmarketapp.data.remote.dto.ErrorData
 import com.plcoding.stockmarketapp.domain.model.CompanyInfo
 import com.plcoding.stockmarketapp.domain.model.CompanyListing
 import com.plcoding.stockmarketapp.domain.model.IntradayInfo
 import com.plcoding.stockmarketapp.domain.repository.StockRepository
 import com.plcoding.stockmarketapp.util.Resource
+import com.squareup.moshi.JsonAdapter
+import com.squareup.moshi.Moshi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import retrofit2.HttpException
 import java.io.IOException
-import java.io.InputStreamReader
 import javax.inject.Inject
 import javax.inject.Singleton
+
 
 @Singleton
 class StockRepositoryImpl @Inject constructor(
@@ -51,15 +50,27 @@ class StockRepositoryImpl @Inject constructor(
             val remoteListings = try {
                 val response = api.getListings()
                 companyListingsParser.parse(response.byteStream())
-            } catch(e: IOException) {
+            } catch(e: Exception) {
                 e.printStackTrace()
-                emit(Resource.Error("Couldn't load data"))
-                null
-            } catch (e: HttpException) {
-                e.printStackTrace()
-                emit(Resource.Error("Couldn't load data"))
-                null
-            }
+                (e as? HttpException)?.let {exception ->
+                    val errorMessage = returnErrorMessage(exception)
+                    emit(Resource.Error(
+                        message = errorMessage.errorMessage
+                    ))
+                    null
+                }?: run{
+                    emit(Resource.Error(
+                        message = "Couldn't load data"
+                    ))
+                    null
+                }
+
+            } /*catch(e: HttpException) {
+            e.printStackTrace()
+            Resource.Error(
+                message = "Couldn't load company info"
+            )
+        }*/
 
             remoteListings?.let { listings ->
                 dao.clearCompanyListings()
@@ -81,33 +92,49 @@ class StockRepositoryImpl @Inject constructor(
             val response = api.getIntradayInfo(symbol)
             val results = intradayInfoParser.parse(response.byteStream())
             Resource.Success(results)
-        } catch(e: IOException) {
+        } catch(e: Exception) {
+            e.printStackTrace()
+            (e as? HttpException)?.let {exception ->
+                val errorMessage = returnErrorMessage(exception)
+                Resource.Error(
+                    message = errorMessage.errorMessage
+                )
+            }?: run{
+                Resource.Error(
+                    message = "Couldn't load intraday info"
+                )
+            }
+
+        } /*catch(e: HttpException) {
             e.printStackTrace()
             Resource.Error(
-                message = "Couldn't load intraday info"
+                message = "Couldn't load company info"
             )
-        } catch(e: HttpException) {
-            e.printStackTrace()
-            Resource.Error(
-                message = "Couldn't load intraday info"
-            )
-        }
+        }*/
     }
 
     override suspend fun getCompanyInfo(symbol: String): Resource<CompanyInfo> {
         return try {
             val result = api.getCompanyInfo(symbol)
             Resource.Success(result.toCompanyInfo())
-        } catch(e: IOException) {
+        } catch(e: Exception) {
+            e.printStackTrace()
+            (e as? HttpException)?.let {exception ->
+                val errorMessage = returnErrorMessage(exception)
+                Resource.Error(
+                    message = errorMessage.errorMessage
+                )
+            }?: run{
+                Resource.Error(
+                    message = "Couldn't load company info"
+                )
+            }
+
+        } /*catch(e: HttpException) {
             e.printStackTrace()
             Resource.Error(
                 message = "Couldn't load company info"
             )
-        } catch(e: HttpException) {
-            e.printStackTrace()
-            Resource.Error(
-                message = "Couldn't load company info"
-            )
-        }
+        }*/
     }
 }
